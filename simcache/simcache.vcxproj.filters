@@ -15,14 +15,14 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Main.cpp">
+    <ClCompile Include="Cache.c">
+      <Filter>Arquivos de Recurso</Filter>
+    </ClCompile>
+    <ClCompile Include="MemGen.c">
+      <Filter>Arquivos de Recurso</Filter>
+    </ClCompile>
+    <ClCompile Include="Main.c">
       <Filter>Arquivos de Origem</Filter>
-    </ClCompile>
-    <ClCompile Include="Cache.cpp">
-      <Filter>Arquivos de Recurso</Filter>
-    </ClCompile>
-    <ClCompile Include="MemGen.cpp">
-      <Filter>Arquivos de Recurso</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
