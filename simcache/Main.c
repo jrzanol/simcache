@@ -28,79 +28,85 @@ int main(int argc, const char* argv[])
 		return EXIT_SUCCESS;
 	}
 
-	if (argc != 3 || strcmp(argv[1], "-config") != 0)
+	FILE* in;
+
+	if (argc < 3 || (in = fopen(argv[2], "rt")) == NULL)
 	{
-		printf("Argumento incorretos!\n");
-		return EXIT_FAILURE;
+		g_Cache[INSTRUCTION_L1].m_Atived = 1;
+		g_Cache[INSTRUCTION_L1].m_BSize = 4;
+		g_Cache[INSTRUCTION_L1].m_NSets = 256;
+		g_Cache[INSTRUCTION_L1].m_Assoc = 1;
+		g_Cache[INSTRUCTION_L1].m_Repl = 'R';
+		g_Cache[INSTRUCTION_L1].m_Name[0] = 'A';
+
+		g_Cache[DATA_L1].m_Atived = 1;
+		g_Cache[DATA_L1].m_BSize = 4;
+		g_Cache[DATA_L1].m_NSets = 256;
+		g_Cache[DATA_L1].m_Assoc = 1;
+		g_Cache[DATA_L1].m_Repl = 'R';
+		g_Cache[DATA_L1].m_Name[0] = 'B';
 	}
-
-	const char* configFileName = argv[2];
-
-	FILE* in = fopen(configFileName, "rt");
-	if (in == NULL)
+	else
 	{
-		printf("Arquivo de configuração não encontrado!\n");
-		return EXIT_FAILURE;
-	}
+		char command[256];
 
-	char command[256];
+		fgets(command, sizeof(command), in);
+		fclose(in);
 
-	fgets(command, sizeof(command), in);
-	fclose(in);
+		memset(g_Cache, 0, sizeof(g_Cache));
 
-	memset(g_Cache, 0, sizeof(g_Cache));
+		// -cache:il1 il1:64:64:1:l -cache:il2 none -cache:dl1 dl1:64:64:1:l -cache:dl2 none -tlb:itlb none -tlb:dtlb none
 
-	// -cache:il1 il1:64:64:1:l -cache:il2 none -cache:dl1 dl1:64:64:1:l -cache:dl2 none -tlb:itlb none -tlb:dtlb none
+		char *ptr = command;
 
-	char *ptr = command;
-
-	while ((ptr = strchr(ptr, '-')) != NULL)
-	{
-		if (strncmp(ptr + 1, "cache", 5) == 0)
+		while ((ptr = strchr(ptr, '-')) != NULL)
 		{
-			char* cacheTypePtr = strchr(ptr, ':');
-			if (cacheTypePtr)
+			if (strncmp(ptr + 1, "cache", 5) == 0)
 			{
-				int cacheIndex = -1;
-				char* cacheType = ++cacheTypePtr;
-
-				if (strncmp(cacheType, "il1", 3) == 0)
-					cacheIndex = 0;
-				else if (strncmp(cacheType, "il2", 3) == 0)
-					cacheIndex = 1;
-				else if (strncmp(cacheType, "dl1", 3) == 0)
-					cacheIndex = 2;
-				else if (strncmp(cacheType, "dl2", 3) == 0)
-					cacheIndex = 3;
-
-				if (cacheIndex != -1)
+				char* cacheTypePtr = strchr(ptr, ':');
+				if (cacheTypePtr)
 				{
-					char* cacheDefPtr = strchr(cacheTypePtr, ' ');
-					if (cacheDefPtr)
+					enCacheType cacheIndex = UNKNOWN;
+					char* cacheType = ++cacheTypePtr;
+
+					if (strncmp(cacheType, "il1", 3) == 0)
+						cacheIndex = INSTRUCTION_L1;
+					else if (strncmp(cacheType, "il2", 3) == 0)
+						cacheIndex = INSTRUCTION_L2;
+					else if (strncmp(cacheType, "dl1", 3) == 0)
+						cacheIndex = DATA_L1;
+					else if (strncmp(cacheType, "dl2", 3) == 0)
+						cacheIndex = DATA_L2;
+
+					if (cacheIndex != UNKNOWN)
 					{
-						if (strncmp(++cacheDefPtr, "none", 4) != 0)
+						char* cacheDefPtr = strchr(cacheTypePtr, ' ');
+						if (cacheDefPtr)
 						{
-							if (sscanf(cacheDefPtr, "%[^:]:%d:%d:%d:%c", g_Cache[cacheIndex].m_Name, &g_Cache[cacheIndex].m_NSets, &g_Cache[cacheIndex].m_BSize, &g_Cache[cacheIndex].m_Assoc, &g_Cache[cacheIndex].m_Repl) == 5)
+							if (strncmp(++cacheDefPtr, "none", 4) != 0)
 							{
-								g_Cache[cacheIndex].m_Atived = 1;
+								if (sscanf(cacheDefPtr, "%[^:]:%d:%d:%d:%c", g_Cache[cacheIndex].m_Name, &g_Cache[cacheIndex].m_NSets, &g_Cache[cacheIndex].m_BSize, &g_Cache[cacheIndex].m_Assoc, &g_Cache[cacheIndex].m_Repl) == 5)
+								{
+									g_Cache[cacheIndex].m_Atived = 1;
+								}
+								else
+									printf("Erro de leitura da definição da cache: %s.\n", ptr);
 							}
-							else
-								printf("Erro de leitura da definição da cache: %s.\n", ptr);
 						}
+						else
+							printf("Erro de leitura da definição: %s.\n", ptr);
 					}
 					else
-						printf("Erro de leitura da definição: %s.\n", ptr);
+						printf("Nenhum tipo de cache definido: %s.\n", ptr);
 				}
 				else
-					printf("Nenhum tipo de cache definido: %s.\n", ptr);
+					printf("Erro de leitura do comando: %s.\n", ptr);
 			}
 			else
-				printf("Erro de leitura do comando: %s.\n", ptr);
-		}
-		else
-			printf("Erro no comando: %s.\n", ptr);
+				printf("Erro no comando: %s.\n", ptr);
 
-		ptr++; // next "-" character
+			ptr++; // next "-" character
+		}
 	}
 
 	in = fopen("memory.dat", "rb");

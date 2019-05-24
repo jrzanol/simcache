@@ -9,6 +9,14 @@
 void SimulateCache();
 void MemoryGenerate();
 
+typedef enum _enCacheType {
+	UNKNOWN = -1,
+	INSTRUCTION_L1 = 0,
+	INSTRUCTION_L2 = 1,
+	DATA_L1 = 2,
+	DATA_L2 = 3
+} enCacheType;
+
 typedef struct _stCache
 {
 	char m_Atived;
