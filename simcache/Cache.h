@@ -17,6 +17,17 @@ typedef enum _enCacheType {
 	DATA_L2 = 3
 } enCacheType;
 
+typedef struct _stCacheBlock
+{
+	int m_Valid;
+	int m_Tag;
+} stCacheBlock;
+
+typedef struct _stCacheSet
+{
+	stCacheBlock* m_Block;
+} stCacheSet;
+
 typedef struct _stCache
 {
 	char m_Atived;
@@ -26,9 +37,18 @@ typedef struct _stCache
 	int m_BSize;
 	int m_Assoc;
 	char m_Repl;
+
+	stCacheSet* m_Set;
 } stCache;
 
 stCache g_Cache[4];
 
 int g_MemorySize;
 unsigned int* g_Memory;
+
+int g_Misses;
+int g_Hits;
+
+int g_MissComp;
+int g_MissCapac;
+int g_MissConf;

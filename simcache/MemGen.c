@@ -4,7 +4,6 @@
 // Nome: Ronei, Gleider
 //
 
-#include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -12,8 +11,6 @@
 
 void MemoryGenerate()
 {
-	srand(_time32(0));
-
 	FILE* out = fopen("memory.dat", "wb");
 	if (out)
 	{

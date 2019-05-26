@@ -4,6 +4,7 @@
 // Nome: Ronei, Gleider
 //
 
+#include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,6 +13,8 @@
 
 int main(int argc, const char* argv[])
 {
+	srand(_time32(0));
+
 	printf("SimCache\n");
 	printf("--------\n\n");
 
@@ -32,10 +35,11 @@ int main(int argc, const char* argv[])
 
 	if (argc < 3 || (in = fopen(argv[2], "rt")) == NULL)
 	{
+		// Definir os valores padrões.
 		g_Cache[INSTRUCTION_L1].m_Atived = 1;
 		g_Cache[INSTRUCTION_L1].m_BSize = 4;
-		g_Cache[INSTRUCTION_L1].m_NSets = 256;
-		g_Cache[INSTRUCTION_L1].m_Assoc = 1;
+		g_Cache[INSTRUCTION_L1].m_NSets = 16;
+		g_Cache[INSTRUCTION_L1].m_Assoc = 16;
 		g_Cache[INSTRUCTION_L1].m_Repl = 'R';
 		g_Cache[INSTRUCTION_L1].m_Name[0] = 'A';
 
@@ -144,9 +148,30 @@ int main(int argc, const char* argv[])
 
 	SimulateCache();
 
+	for (int cacheId = 0; cacheId < 4; cacheId++)
+	{
+		if (!g_Cache[cacheId].m_Set)
+			continue;
+
+		for (int setId = 0; setId < g_Cache[cacheId].m_NSets; setId++)
+			free(g_Cache[cacheId].m_Set[setId].m_Block);
+
+		free(g_Cache[cacheId].m_Set);
+		g_Cache[cacheId].m_Set = NULL;
+	}
+	
 	free(g_Memory);
 	g_Memory = NULL;
 
+	printf("Access: %d\n", g_MemorySize);
+	printf("Misses: %d\n", g_Misses);
+	printf("Hits: %d\n\n", g_Hits);
+
+	printf("Miss Compulsorio: %d\n", g_MissComp);
+	printf("Miss Capacidade: %d\n", g_MissCapac);
+	printf("Miss Conflito: %d\n\n", g_MissConf);
+
+	system("pause >nul");
 	return EXIT_SUCCESS;
 }
 
