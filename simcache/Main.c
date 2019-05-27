@@ -38,8 +38,8 @@ int main(int argc, const char* argv[])
 		// Definir os valores padrões.
 		g_Cache[INSTRUCTION_L1].m_Atived = 1;
 		g_Cache[INSTRUCTION_L1].m_BSize = 4;
-		g_Cache[INSTRUCTION_L1].m_NSets = 16;
-		g_Cache[INSTRUCTION_L1].m_Assoc = 16;
+		g_Cache[INSTRUCTION_L1].m_NSets = 256;
+		g_Cache[INSTRUCTION_L1].m_Assoc = 1;
 		g_Cache[INSTRUCTION_L1].m_Repl = 'R';
 		g_Cache[INSTRUCTION_L1].m_Name[0] = 'A';
 
