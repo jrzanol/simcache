@@ -1,7 +1,6 @@
 // SimCache: Cache Simulator
 // 
 // AOCII - Trabalho 2
-// Nome: Ronei, Gleider
 //
 
 #include <math.h>
@@ -10,6 +9,18 @@
 #include <string.h>
 
 #include "Cache.h"
+
+stCache g_Cache;
+
+int g_MemorySize = 0;
+unsigned int* g_Memory = NULL;
+
+int g_Misses = 0;
+int g_Hits = 0;
+
+int g_MissComp = 0;
+int g_MissCapac = 0;
+int g_MissConf = 0;
 
 void SimulateCache()
 {
@@ -20,80 +31,74 @@ void SimulateCache()
 	g_MissCapac = 0;
 	g_MissConf = 0;
 
-	for (int cacheId = 0; cacheId < 1; cacheId++)
+	// Calcula a quantidade de bits do Deslocamento e do Índice.
+	const int offsetBits = (int)log2((float)g_Cache.m_BSize);
+	const int indiceBits = (int)log2((float)g_Cache.m_NSets);
+
+	// Cálcula a máscara de bits do Índice.
+	const int indiceMask = (g_Cache.m_NSets - 1);
+
+	// Cálculo do tamanho total da Cache.
+	const size_t cacheSize = (g_Cache.m_NSets * g_Cache.m_Assoc);
+
+	g_Cache.m_Block = (stCacheBlock*)malloc(cacheSize * sizeof(stCacheBlock));
+	if (g_Cache.m_Block)
 	{
-		int blockMask = (g_Cache[cacheId].m_BSize - 1);
-		int blockBits = (int)log2((float)g_Cache[cacheId].m_BSize);
-		int setBits = (int)log2((float)g_Cache[cacheId].m_NSets);
-
-		int setMask = ((g_Cache[cacheId].m_NSets - 1) << blockBits);
-		int tagMask = -1 ^ setMask ^ blockMask;
-
-		g_Cache[cacheId].m_Set = (stCacheSet*)malloc(sizeof(stCacheSet) * g_Cache[cacheId].m_NSets);
-		memset(g_Cache[cacheId].m_Set, 0, sizeof(stCacheSet) * g_Cache[cacheId].m_NSets);
-
-		for (int setId = 0; setId < g_Cache[cacheId].m_NSets; setId++)
-		{
-			g_Cache[cacheId].m_Set[setId].m_Block = (stCacheBlock*)malloc(sizeof(stCacheBlock) * g_Cache[cacheId].m_Assoc);
-			memset(g_Cache[cacheId].m_Set[setId].m_Block, 0, sizeof(sizeof(stCacheBlock) * g_Cache[cacheId].m_Assoc));
-		}
-
-		FILE* out = fopen("MemoryAccess.txt", "wt");
+		memset(g_Cache.m_Block, 0, cacheSize * sizeof(stCacheBlock));
 
 		for (int addressId = 0; addressId < g_MemorySize; addressId++)
 		{
-			int address = g_Memory[addressId];
+			const int address = g_Memory[addressId];
 
-			int set = (address & setMask) >> blockBits;
-			int tag = ((address & tagMask) >> blockBits) >> setBits;
+			const int indice = (address >> offsetBits) & indiceMask;
+			const int tag = (address >> offsetBits) >> indiceBits;
 
-			if (out)
-				fprintf(out, "Addr %03d: tag %d set %d: ", address, tag, set);
+			// Corrige o Índice em relação a Associatividade.
+			const int idMemory = (indice * g_Cache.m_Assoc);
 
 			int blockId;
-			for (blockId = 0; blockId < g_Cache[cacheId].m_Assoc; blockId++)
+			for (blockId = 0; blockId < g_Cache.m_Assoc; blockId++)
 			{
-				if (g_Cache[cacheId].m_Set[set].m_Block[blockId].m_Valid == 1)
+				if (g_Cache.m_Block[idMemory + blockId].m_Valid == 1)
 				{
-					if (g_Cache[cacheId].m_Set[set].m_Block[blockId].m_Tag == tag)
+					if (g_Cache.m_Block[idMemory + blockId].m_Tag == tag)
 					{
 						g_Hits++;
-
-						if (out)
-							fprintf(out, "HIT\n");
-
 						break;
 					}
 				}
 			}
 
-			if (blockId == g_Cache[cacheId].m_Assoc)
+			if (blockId == g_Cache.m_Assoc)
 			{
 				g_Misses++;
 
-				if (out)
-					fprintf(out, "MISS\n");
-
-				for (blockId = 0; blockId < g_Cache[cacheId].m_Assoc; blockId++)
-					if (g_Cache[cacheId].m_Set[set].m_Block[blockId].m_Valid == 0)
+				for (blockId = 0; blockId < g_Cache.m_Assoc; blockId++)
+					if (g_Cache.m_Block[idMemory + blockId].m_Valid == 0)
 						break;
 
-				if (blockId == g_Cache[cacheId].m_Assoc)
+				if (blockId == g_Cache.m_Assoc)
 				{
-					if (g_Cache[cacheId].m_Repl == 'R' || g_Cache[cacheId].m_Repl == 'r')
-					{
-						blockId = (rand() % g_Cache[cacheId].m_Assoc);
-						g_MissConf++; // Miss Conflito ou Capacidade?
-					}
-					else // Outras políticas de substituição.
-						blockId = 0;
+					blockId = (rand() % g_Cache.m_Assoc);
+
+					size_t checkCapac;
+					for (checkCapac = 0; checkCapac < cacheSize; checkCapac++)
+						if (g_Cache.m_Block[checkCapac].m_Valid == 0)
+							break;
+
+					if (checkCapac < cacheSize)
+						g_MissConf++;
+					else
+						g_MissCapac++;
 				}
 				else
 					g_MissComp++;
 
-				g_Cache[cacheId].m_Set[set].m_Block[blockId].m_Valid = 1;
-				g_Cache[cacheId].m_Set[set].m_Block[blockId].m_Tag = tag;
+				g_Cache.m_Block[idMemory + blockId].m_Valid = 1;
+				g_Cache.m_Block[idMemory + blockId].m_Tag = tag;
 			}
 		}
+
+		free(g_Cache.m_Block);
 	}
 }

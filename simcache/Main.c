@@ -1,10 +1,10 @@
 // SimCache: Cache Simulator
 // 
 // AOCII - Trabalho 2
-// Nome: Ronei, Gleider
 //
 
 #include <time.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,107 +13,27 @@
 
 int main(int argc, const char* argv[])
 {
+	if (argc != 7) {
+		printf("Numero de argumentos incorreto. Utilize:\n");
+		printf("./cache_simulator <nsets> <bsize> <assoc> <substituição> <flag_saida> arquivo_de_entrada\n");
+		exit(EXIT_FAILURE);
+	}
+
+	int nsets = atoi(argv[1]);
+	int bsize = atoi(argv[2]);
+	int assoc = atoi(argv[3]);
+	const char* subst = argv[4];
+	int flagOut = atoi(argv[5]);
+	const char* arquivoEntrada = argv[6];
+
+	g_Cache.m_NSets = nsets;
+	g_Cache.m_BSize = bsize;
+	g_Cache.m_Assoc = assoc;
+	g_Cache.m_Repl = toupper(subst[0]);
+	
 	srand(_time32(0));
 
-	printf("SimCache\n");
-	printf("--------\n\n");
-
-	g_MemorySize = 0;
-	g_Memory = NULL;
-
-	// ./simcache -config <config file> <benchmark>
-
-	if (argc == 2 && strcmp(argv[1], "-memgen") == 0)
-	{
-		MemoryGenerate();
-
-		printf("Memória gerada!\n");
-		return EXIT_SUCCESS;
-	}
-
-	FILE* in;
-
-	if (argc < 3 || (in = fopen(argv[2], "rt")) == NULL)
-	{
-		// Definir os valores padrões.
-		g_Cache[INSTRUCTION_L1].m_Atived = 1;
-		g_Cache[INSTRUCTION_L1].m_BSize = 4;
-		g_Cache[INSTRUCTION_L1].m_NSets = 256;
-		g_Cache[INSTRUCTION_L1].m_Assoc = 1;
-		g_Cache[INSTRUCTION_L1].m_Repl = 'R';
-		g_Cache[INSTRUCTION_L1].m_Name[0] = 'A';
-
-		g_Cache[DATA_L1].m_Atived = 1;
-		g_Cache[DATA_L1].m_BSize = 4;
-		g_Cache[DATA_L1].m_NSets = 256;
-		g_Cache[DATA_L1].m_Assoc = 1;
-		g_Cache[DATA_L1].m_Repl = 'R';
-		g_Cache[DATA_L1].m_Name[0] = 'B';
-	}
-	else
-	{
-		char command[256];
-
-		fgets(command, sizeof(command), in);
-		fclose(in);
-
-		memset(g_Cache, 0, sizeof(g_Cache));
-
-		// -cache:il1 il1:64:64:1:l -cache:il2 none -cache:dl1 dl1:64:64:1:l -cache:dl2 none -tlb:itlb none -tlb:dtlb none
-
-		char *ptr = command;
-
-		while ((ptr = strchr(ptr, '-')) != NULL)
-		{
-			if (strncmp(ptr + 1, "cache", 5) == 0)
-			{
-				char* cacheTypePtr = strchr(ptr, ':');
-				if (cacheTypePtr)
-				{
-					enCacheType cacheIndex = UNKNOWN;
-					char* cacheType = ++cacheTypePtr;
-
-					if (strncmp(cacheType, "il1", 3) == 0)
-						cacheIndex = INSTRUCTION_L1;
-					else if (strncmp(cacheType, "il2", 3) == 0)
-						cacheIndex = INSTRUCTION_L2;
-					else if (strncmp(cacheType, "dl1", 3) == 0)
-						cacheIndex = DATA_L1;
-					else if (strncmp(cacheType, "dl2", 3) == 0)
-						cacheIndex = DATA_L2;
-
-					if (cacheIndex != UNKNOWN)
-					{
-						char* cacheDefPtr = strchr(cacheTypePtr, ' ');
-						if (cacheDefPtr)
-						{
-							if (strncmp(++cacheDefPtr, "none", 4) != 0)
-							{
-								if (sscanf(cacheDefPtr, "%[^:]:%d:%d:%d:%c", g_Cache[cacheIndex].m_Name, &g_Cache[cacheIndex].m_NSets, &g_Cache[cacheIndex].m_BSize, &g_Cache[cacheIndex].m_Assoc, &g_Cache[cacheIndex].m_Repl) == 5)
-								{
-									g_Cache[cacheIndex].m_Atived = 1;
-								}
-								else
-									printf("Erro de leitura da definição da cache: %s.\n", ptr);
-							}
-						}
-						else
-							printf("Erro de leitura da definição: %s.\n", ptr);
-					}
-					else
-						printf("Nenhum tipo de cache definido: %s.\n", ptr);
-				}
-				else
-					printf("Erro de leitura do comando: %s.\n", ptr);
-			}
-			else
-				printf("Erro no comando: %s.\n", ptr);
-
-			ptr++; // next "-" character
-		}
-	}
-
-	in = fopen("memory.dat", "rb");
+	FILE* in = fopen(arquivoEntrada, "rb");
 	if (in == NULL)
 	{
 		printf("Falha ao ler a memória!\n");
@@ -146,32 +66,36 @@ int main(int argc, const char* argv[])
 	fread(g_Memory, sizeof(unsigned int), g_MemorySize, in);
 	fclose(in);
 
+	// Convert Big Endian to Little Endian.
+	for (int i = 0; i < g_MemorySize; i++)
+	{
+		unsigned int num = g_Memory[i];
+
+		g_Memory[i] = ((num >> 24) & 0xff) |
+			((num << 8) & 0xff0000) |
+			((num >> 8) & 0xff00) |
+			((num << 24) & 0xff000000);
+	}
+
 	SimulateCache();
 
-	for (int cacheId = 0; cacheId < 4; cacheId++)
-	{
-		if (!g_Cache[cacheId].m_Set)
-			continue;
-
-		for (int setId = 0; setId < g_Cache[cacheId].m_NSets; setId++)
-			free(g_Cache[cacheId].m_Set[setId].m_Block);
-
-		free(g_Cache[cacheId].m_Set);
-		g_Cache[cacheId].m_Set = NULL;
-	}
-	
 	free(g_Memory);
 	g_Memory = NULL;
 
-	printf("Access: %d\n", g_MemorySize);
-	printf("Misses: %d\n", g_Misses);
-	printf("Hits: %d\n\n", g_Hits);
+	if (flagOut == 0)
+	{
+		printf("Access: %d\n", g_MemorySize);
+		printf("Misses: %.4f\n", g_Misses / (float)g_MemorySize);
+		printf("Hits: %.4f\n\n", g_Hits / (float)g_MemorySize);
 
-	printf("Miss Compulsorio: %d\n", g_MissComp);
-	printf("Miss Capacidade: %d\n", g_MissCapac);
-	printf("Miss Conflito: %d\n\n", g_MissConf);
+		printf("Miss Compulsorio: %.2f\n", g_MissComp / (float)g_Misses);
+		printf("Miss Capacidade: %.2f\n", g_MissCapac / (float)g_Misses);
+		printf("Miss Conflito: %.2f\n\n", g_MissConf / (float)g_Misses);
+	}
+	else
+		printf("%d %.4f %.4f %.2f %.2f %.2f", g_MemorySize, g_Hits / (float)g_MemorySize, g_Misses / (float)g_MemorySize,
+			g_MissComp / (float)g_Misses, g_MissCapac / (float)g_Misses, g_MissConf / (float)g_Misses);
 
-	system("pause >nul");
 	return EXIT_SUCCESS;
 }
 
